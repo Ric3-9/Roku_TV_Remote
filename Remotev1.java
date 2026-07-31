@@ -4,6 +4,7 @@ import java.net.*;
 
 class Remotev1 {
     private static String rokuIp = null;
+    private static boolean isStopMediaTrue = false;
 
     enum Controls {
         UP("UP"), DOWN("Down"), LEFT("Left"), RIGHT("Right"),
@@ -28,14 +29,14 @@ class Remotev1 {
             frame.setLocationRelativeTo(null);
 
             frame.addKeyListener(new KeyAdapter() {
-        
+
 
                 public void keyPressed(KeyEvent e) {
                     if (rokuIp == null) {
                         System.err.println("Roku IP not found yet! Please wait or check your connection.");
                         return;
                     }
-                    private boolean isStopMediaTrue = false;
+                    isStopMediaTrue = false;
 
                     Controls command = null;
                     switch (e.getKeyCode()) { //keys to control the tv
@@ -66,7 +67,7 @@ class Remotev1 {
     }
     private static void triggerStopMediaPlay() { /*this prevents others from using the TV*/
         while (isStopMediaTrue) {
-        System.out.println("Executing triggerStopMediaPlay");
+            System.out.println("Executing triggerStopMediaPlay");
             new Thread(() -> {
                 Controls[] stopMediaPlay = {
                         Controls.ON, Controls.OFF,
@@ -83,15 +84,15 @@ class Remotev1 {
                         conn.setRequestMethod("POST");
                         conn.setConnectTimeout(1000);
                         conn.setDoOutput(true);
-    
+
                         int code = conn.getResponseCode();
                         conn.disconnect();
-    
+
                         if (code != HttpURLConnection.HTTP_OK) {
                             System.err.println("stopMediaPlay broken. Command failed: " + command.name() + "Trying again.");
-                            triggerStopMediaPlay(); //the function calls itself if the code is interupted
+                            triggerStopMediaPlay(); //the function calls itself if the code is interrupted
                         }
-                        Thread.sleep(500); //ensures there is enough time between commands so the tv can proccess them correctly
+                        Thread.sleep(500); //ensures there is enough time between commands so the tv can process them correctly
                     } catch (Exception e) {
                         System.err.println("stopMediaPlay error: " + e.getMessage());
                     }
