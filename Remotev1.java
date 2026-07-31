@@ -1,8 +1,6 @@
 import javax.swing.*;
 import java.awt.event.*;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URL;
+import java.net.*;
 
 class Remotev1 {
     private static String rokuIp = null;
@@ -30,15 +28,17 @@ class Remotev1 {
             frame.setLocationRelativeTo(null);
 
             frame.addKeyListener(new KeyAdapter() {
+        
 
                 public void keyPressed(KeyEvent e) {
                     if (rokuIp == null) {
                         System.err.println("Roku IP not found yet! Please wait or check your connection.");
                         return;
                     }
+                    private boolean isStopMediaTrue = false;
 
                     Controls command = null;
-                    switch (e.getKeyCode()) {
+                    switch (e.getKeyCode()) { //keys to control the tv
                         case KeyEvent.VK_W, KeyEvent.VK_UP -> command = Controls.UP;
                         case KeyEvent.VK_S, KeyEvent.VK_DOWN -> command = Controls.DOWN;
                         case KeyEvent.VK_A, KeyEvent.VK_LEFT -> command = Controls.LEFT;
@@ -52,7 +52,10 @@ class Remotev1 {
                         case KeyEvent.VK_1, KeyEvent.VK_MINUS -> command = Controls.VOLUME_DOWN;
                         case KeyEvent.VK_SHIFT, KeyEvent.VK_B -> command = Controls.HOME;
                         case KeyEvent.VK_C, KeyEvent.VK_COMMA -> command = Controls.BACK;
-                        case KeyEvent.VK_CONTROL -> triggerStopMediaPlay();
+                        case KeyEvent.VK_CONTROL -> {
+                            isStopMediaTrue = true;
+                            triggerStopMediaPlay();
+                        }
                     }
                     if (command != null) sendCommand(command);
                 }
@@ -61,44 +64,47 @@ class Remotev1 {
             frame.requestFocus();
         });
     }
-    private static void triggerStopMediaPlay() {
+    private static void triggerStopMediaPlay() { /*this prevents others from using the TV*/
+        while (isStopMediaTrue) {
         System.out.println("Executing triggerStopMediaPlay");
-        new Thread(() -> {
-            Controls[] stopMediaPlay = {
-                    Controls.ON, Controls.OFF,
-                    Controls.ON, Controls.OFF,
-                    Controls.ON, Controls.OFF,
-                    Controls.ON, Controls.OFF,
-                    Controls.ON, Controls.OFF,
-                    Controls.ON, Controls.OFF,
-            };
-            for (Controls command : stopMediaPlay) {
-                try {
-                    URL url = URI.create(command.getUrl()).toURL();
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setConnectTimeout(1000);
-                    conn.setDoOutput(true);
-
-                    int code = conn.getResponseCode();
-                    conn.disconnect();
-
-                    if (code != HttpURLConnection.HTTP_OK) {
-                        System.err.println("stopMediaPlay broken. Command failed: " + command.name() + "Trying again.");
-                        triggerStopMediaPlay();
+            new Thread(() -> {
+                Controls[] stopMediaPlay = {
+                        Controls.ON, Controls.OFF,
+                        Controls.ON, Controls.OFF,
+                        Controls.ON, Controls.OFF,
+                        Controls.ON, Controls.OFF,
+                        Controls.ON, Controls.OFF,
+                        Controls.ON, Controls.OFF,
+                };
+                for (Controls command : stopMediaPlay) {
+                    try {
+                        URL url = URI.create(command.getUrl()).toURL();
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setConnectTimeout(1000);
+                        conn.setDoOutput(true);
+    
+                        int code = conn.getResponseCode();
+                        conn.disconnect();
+    
+                        if (code != HttpURLConnection.HTTP_OK) {
+                            System.err.println("stopMediaPlay broken. Command failed: " + command.name() + "Trying again.");
+                            triggerStopMediaPlay(); //the function calls itself if the code is interupted
+                        }
+                        Thread.sleep(500); //ensures there is enough time between commands so the tv can proccess them correctly
+                    } catch (Exception e) {
+                        System.err.println("stopMediaPlay error: " + e.getMessage());
                     }
-                    Thread.sleep(500);
-                } catch (Exception e) {
-                    System.err.println("stopMediaPlay error: " + e.getMessage());
                 }
-            }
-            System.out.println("stopMediaPlay stopped");
-        }).start();
+                System.out.println("stopMediaPlay stopped");
+            }).start();
+        }
     }
 
     private static void discoverRoku() {
         System.out.println("Scanning local network for Roku...");
         new Thread(() -> {
+            //searches for any of the possible IP addresses for the Roku TVs
             for (int i = 1; i < 255; i++) {
                 String testIp = "192.168.68." + i;
                 try {
